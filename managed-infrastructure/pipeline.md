@@ -20,7 +20,7 @@ clusters
     - Current implementation fails with errors that don't line up with
     current documentation from ITPaaS
 
-- Do we want to do anything fancy when it comes to merging code into master
+- Do we want to do anything fancy when it comes to merging code into master 
 from staging? For example merging into `/staging` could trigger a pipeline that:
     1. Builds image in OpenShift
     1. Checks out image
@@ -39,3 +39,49 @@ it should kick off a build and deployment of that code into the dev OpenShift
 cluster.
 
 When we merge code into 
+
+https://github.com/openshift/jenkins-client-plugin
+The above link contains the repository for the openshift java plugin,
+which ITPaaS uses to interact with the openshift clusters in the pipelines
+
+
+# Pipeline Coding Structure
+
+Ideally, we should be able to write code for one of the pipeline scripts
+and run a unit test suite.
+If the tests pass, we should be 100% certain that the pipeline will at
+least execute on the managed jenkins instance when it is committed to `master`.
+
+The problem with this is that it is difficult to exactly duplicate the
+structure of Jenkins.
+We can use the jenkins-unit test package,
+but already we've run into issues where the unit tests pass
+but the pipeline fails to compile or execute on Jenkins.
+
+## OOP
+To prevent the pipelines from becoming horrifically complicated once we start
+introducing more complicated logic, we would like to be able to abstract some
+of the concepts into separate classes.
+
+In order to do this with jenkins,
+it looks like we need to use a shared library.
+We could also just define the classes in the same files that the pipeline
+runs in, but that seems suboptimal.
+
+### Update
+Actually, we can use a jenkins `load` global variable, which can load arbitrary
+groovy scripts dynamically. ~~We can maybe use this to import classes to the
+pipeline script itself.~~ This doens't work for our use case,
+because classes can't be loaded dynamically in this fashion.
+Instead ITPaaS allowed us to add a shared library to our project folder.
+The repo at https://gitlab.corp.redhat.com/mkt-ops-de/mktg-ops-pipeline-utils.git
+contains the shared library code. We import it into our pipeline scripts using
+```java
+@Library('MktgOpsPipelineUtils@pipeline-class')
+import com.redhat.mktg_ops.pipeline.*
+```
+
+
+### NonCPS decorator
+In order to use a method in a classes constructor, that method needs to use the
+`@NonCPS` decorator from the cloudbees package.
